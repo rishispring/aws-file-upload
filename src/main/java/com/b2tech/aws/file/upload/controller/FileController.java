@@ -2,7 +2,9 @@ package com.b2tech.aws.file.upload.controller;
 
 import com.b2tech.aws.file.upload.service.FileService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,5 +36,15 @@ public class FileController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(response);
         }
+    }
+
+    @GetMapping("/api/downloadFile/{filename}")
+    public ResponseEntity<byte[]> downloadFile(@PathVariable("fileName") String fileName){
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Content-type", MediaType.ALL_VALUE);
+        headers.add("Content-Disposition", "attachment, filename="+fileName);
+
+        byte[] bytes = fileService.downloadFile(fileName);
+        return ResponseEntity.status(HttpStatus.OK).headers(headers).body(bytes);
     }
 }

@@ -3,9 +3,8 @@ package com.b2tech.aws.file.upload.service;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.model.CannedAccessControlList;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PutObjectResult;
+import com.amazonaws.services.s3.model.*;
+import com.amazonaws.util.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -84,6 +83,18 @@ public class FileService implements FileServiceInterface{
             response.put("Message", e.getMessage());
         }
         return response;
+    }
+
+    @Override
+    public byte[] downloadFile(String fileName){
+        String objectKey = UUID.nameUUIDFromBytes(fileName.getBytes()).toString();
+        S3Object object = awsS3Client.getObject(bucketName, objectKey);
+        S3ObjectInputStream objectContent = object.getObjectContent();
+        try{
+            return IOUtils.toByteArray(objectContent);
+        } catch (IOException e){
+            throw new RuntimeException(e);
+        }
     }
 
 }
