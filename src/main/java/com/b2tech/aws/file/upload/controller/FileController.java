@@ -21,4 +21,18 @@ public class FileController {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(response);
     }
+
+    @DeleteMapping("/api/deleteFile/{fileName}")
+    public ResponseEntity<Map<String, String>> deleteFile(@PathVariable("fileName") String fileName){
+        Map<String, String> response = fileService.deleteFile(fileName);
+        String status = response.get("Status");
+        if(status == "ok"){
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(response);
+        }
+        else{
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(response);
+        }
+    }
 }

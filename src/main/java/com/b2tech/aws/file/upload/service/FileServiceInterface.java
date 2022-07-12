@@ -8,6 +8,8 @@ public interface FileServiceInterface {
 
     Map<String, String> save(MultipartFile file);
 
+     Map<String, String> deleteFile(String fileName);
+
 //    byte[] downloadFile(String fileName);
 //
 //    String deleteFile(String fileName);

@@ -1,5 +1,7 @@
 package com.b2tech.aws.file.upload.service;
 
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.CannedAccessControlList;
 import com.amazonaws.services.s3.model.ObjectMetadata;
@@ -63,6 +65,24 @@ public class FileService implements FileServiceInterface{
         response.put("ResourceUrl", resourceUrl);
         response.put("E-Tag info", result.getETag());
         response.put("Metadata", fileMetadataAsString);
+        return response;
+    }
+
+    @Override
+    public Map<String, String> deleteFile(String fileName){
+        // get objectkey of the file
+        String objectKey = UUID.nameUUIDFromBytes(fileName.getBytes()).toString();
+
+        Map<String, String> response = new HashMap<>();
+        try {
+            awsS3Client.deleteObject(this.bucketName, fileName);
+            response.put("Status", "ok");
+            response.put("Message", "Object in aws s3 with given file-name deleted");
+        }
+        catch(SdkClientException e){
+            response.put("Status", "error");
+            response.put("Message", e.getMessage());
+        }
         return response;
     }
 
