@@ -1,8 +1,7 @@
 package com.b2tech.aws.file.upload.service;
 
-import com.amazonaws.AmazonServiceException;
 import com.amazonaws.SdkClientException;
-import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.*;
 import com.amazonaws.util.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -21,11 +21,11 @@ import java.util.stream.Collectors;
 @Service
 public class FileService implements FileServiceInterface{
 
-    @Value("$(s3.bucket.name)")
+    @Value("${s3.bucket.name}")
     private String bucketName;  // fetched from application.properties file
 
     @Autowired
-    private AmazonS3Client awsS3Client;
+    private AmazonS3 amazonS3;
 
     @Override
     public Map<String, String> save(MultipartFile multipartFile){
@@ -43,12 +43,14 @@ public class FileService implements FileServiceInterface{
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setUserMetadata(fileMetaData);
         metadata.setContentType(multipartFile.getContentType());
+        metadata.setContentLength(multipartFile.getSize());
 
         // now get file from the multipart file and upload it to s3 bucket
         PutObjectResult result;
         try{
-            result = awsS3Client.putObject(this.bucketName, objectKey, multipartFile.getInputStream(), metadata);
+            result = amazonS3.putObject(bucketName, objectKey, multipartFile.getInputStream(), metadata);
         } catch(IOException e){
+            System.out.println("Some error occurred during putObject");
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Error occurred while uploading file");
         }
@@ -57,24 +59,33 @@ public class FileService implements FileServiceInterface{
                         .map(key -> key + "=" + fileMetaData.get(key))
                         .collect(Collectors.joining(", ", "{", "}"));
 
-        awsS3Client.setObjectAcl(this.bucketName, objectKey, CannedAccessControlList.PublicRead);
-        String resourceUrl = awsS3Client.getResourceUrl(this.bucketName, objectKey);
+//        amazonS3.setObjectAcl(bucketName, objectKey, CannedAccessControlList.PublicRead);
+//        String resourceUrl = amazonS3.getUrl(bucketName, objectKey).toString();
 
         Map<String, String> response = new HashMap<>();
-        response.put("ResourceUrl", resourceUrl);
+//        response.put("ResourceUrl", resourceUrl);
         response.put("E-Tag info", result.getETag());
         response.put("Metadata", fileMetadataAsString);
         return response;
+    }
+
+    public void listFiles() {
+        System.out.format("Bucket name is : %s", this.bucketName);
+        System.out.println("Listing objects, in file service");
+        ListObjectsV2Result totalObjectsResult = amazonS3.listObjectsV2(bucketName);
+        List<S3ObjectSummary> objects = totalObjectsResult.getObjectSummaries();
+        for(S3ObjectSummary os : objects){
+            System.out.println("* " + os.getKey());
+        }
     }
 
     @Override
     public Map<String, String> deleteFile(String fileName){
         // get objectkey of the file
         String objectKey = UUID.nameUUIDFromBytes(fileName.getBytes()).toString();
-
         Map<String, String> response = new HashMap<>();
         try {
-            awsS3Client.deleteObject(this.bucketName, fileName);
+            amazonS3.deleteObject(this.bucketName, objectKey);
             response.put("Status", "ok");
             response.put("Message", "Object in aws s3 with given file-name deleted");
         }
@@ -85,28 +96,16 @@ public class FileService implements FileServiceInterface{
         return response;
     }
 
-    @Override
-    public byte[] downloadFile(String fileName){
-        String objectKey = UUID.nameUUIDFromBytes(fileName.getBytes()).toString();
-        S3Object object = awsS3Client.getObject(bucketName, objectKey);
-        S3ObjectInputStream objectContent = object.getObjectContent();
-        try{
-            return IOUtils.toByteArray(objectContent);
-        } catch (IOException e){
-            throw new RuntimeException(e);
-        }
-    }
+//    @Override
+//    public byte[] downloadFile(String fileName){
+//        String objectKey = UUID.nameUUIDFromBytes(fileName.getBytes()).toString();
+//        S3Object object = amazonS3.getObject(bucketName, objectKey);
+//        S3ObjectInputStream objectContent = object.getObjectContent();
+//        try{
+//            return IOUtils.toByteArray(objectContent);
+//        } catch (IOException e){
+//            throw new RuntimeException(e);
+//        }
+//    }
 
 }
-
-//        System.out.printf("getName :  %s\n", multipartFile.getName());
-//        System.out.printf("getOriginalFileName :  %s\n", multipartFile.getOriginalFilename());
-//        System.out.printf("getSize :  %d\n", multipartFile.getSize());
-//        System.out.printf("cleanFileName :  %s\n", StringUtils.cleanPath(multipartFile.getOriginalFilename()));
-//
-//        try(Reader reader = new InputStreamReader(multipartFile.getResource().getInputStream(), UTF_8)){
-//            System.out.println("Trying to read file\n\n\n");
-//            System.out.println(FileCopyUtils.copyToString(reader));
-//        } catch (IOException e){
-//            throw new UncheckedIOException(e);
-//        }
